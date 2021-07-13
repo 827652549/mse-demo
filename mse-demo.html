@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>mse-demo</title>
+</head>
+<body>
+<video controls/>
+</body>
+<script>
+  window.onload = function () {
+    let vidElement = document.querySelector('video')
+
+    if (window.MediaSource) {
+      const mediaSource = new MediaSource()
+      vidElement.src = URL.createObjectURL(mediaSource)
+      mediaSource.addEventListener('sourceopen', sourceOpen)
+    } else {
+      console.log('The Media Source Extensions API is not supported.')
+    }
+
+    function sourceOpen (e) {
+      //浏览器不会自动删除URL对象，需要用这段代码进行清除
+      URL.revokeObjectURL(vidElement.src)
+      const videoMime = 'video/mp4; codecs="avc1.640028"'
+      const audioMime = 'audio/mp4; codecs="mp4a.40.2"'
+      const mediaSource = e.target
+      const videoSourceBuffer = mediaSource.addSourceBuffer(videoMime)
+      const audioSourceBuffer = mediaSource.addSourceBuffer(audioMime)
+      const videoUrl = 'b.m4s'
+      const audioUrl = 'a.m4s'
+      let list = 0
+
+      Promise.all([
+        videoFetch()
+        , audioFetch()])
+
+      function videoFetch () {
+        return new Promise(resolve => {
+          fetch(videoUrl).then(function (response) {
+            return response.arrayBuffer()
+          }).then(function (arrayBuffer) {
+            videoSourceBuffer.appendBuffer(arrayBuffer)
+          }).then(function () {
+            list++
+            videoSourceBuffer.addEventListener('updateend', end)
+            resolve()
+          })
+        })
+      }
+
+      function audioFetch () {
+        return new Promise(resolve => {
+          fetch(audioUrl).then(function (response) {
+            return response.arrayBuffer()
+          }).then(function (arrayBuffer) {
+            audioSourceBuffer.appendBuffer(arrayBuffer)
+          }).then(function () {
+            list++
+            audioSourceBuffer.addEventListener('updateend', end)
+            resolve()
+          })
+        })
+      }
+
+      function end () {
+        if (!audioSourceBuffer.updating && !videoSourceBuffer.updating && mediaSource.readyState === 'open'&& list===2) {
+          mediaSource.endOfStream()
+          console.log('over')
+        }
+      }
+    }
+  }
+</script>
+</html>
